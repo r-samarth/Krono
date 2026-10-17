@@ -374,7 +374,8 @@ final class TaskStore: ObservableObject {
                 if pendingDeletes.contains(remote.id) { continue }
 
                 if let pending = pendingUpserts[remote.id] {
-                    if pending.updatedAt >= remote.updatedAt {
+                    // Supabase timestamps may be rounded to milliseconds by ISO-8601 encoding.
+                    if pending.updatedAt.timeIntervalSince(remote.updatedAt) >= -0.002 {
                         mergedByID[remote.id] = pending
                     } else {
                         // Another device has a genuinely newer version.
@@ -384,7 +385,7 @@ final class TaskStore: ObservableObject {
                     continue
                 }
 
-                if let local = localByID[remote.id], local.updatedAt > remote.updatedAt {
+                if let local = localByID[remote.id], local.updatedAt.timeIntervalSince(remote.updatedAt) > 0.002 {
                     // Recover edits made by older app builds and queue them for repair.
                     mergedByID[local.id] = local
                     pendingUpserts[local.id] = local
