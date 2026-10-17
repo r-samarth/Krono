@@ -20,7 +20,7 @@ Your workspace (`/Users/samarthr/ISO-todo list`) contains:
 
 ---
 
-## 🎨 Semantic Design System (Anti-AI Slop Color Palette)
+## 🎨 Semantic Design System 
 
 Color in Krono is strictly a data signal, never visual decoration:
 - **Canvas (`#0D0E11`)**: Deep Carbon Obsidian for maximum contrast and eye comfort.
