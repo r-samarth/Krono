@@ -19,19 +19,29 @@ struct BuiltBySamWatermark: View {
             .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
             .contentShape(Rectangle())
             #else
-            HStack(spacing: 4) {
+            VStack(spacing: 2) {
                 Text("By Sam")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(KronoTheme.inkMuted)
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(KronoTheme.inkMuted.opacity(0.6))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(KronoTheme.inkPrimary)
+                    .lineLimit(1)
+                    .fixedSize()
+                
+                Text("Open Source")
+                    .font(.system(size: 8.5, weight: .semibold))
+                    .foregroundStyle(KronoTheme.completed)
+                    .lineLimit(1)
+                    .fixedSize()
             }
-            .padding(.horizontal, 10)
-            .frame(height: 38)
-            .background(KronoTheme.surface, in: Capsule())
-            .overlay(Capsule().strokeBorder(KronoTheme.border, lineWidth: 1))
-            .contentShape(Rectangle())
+            .frame(width: 70, height: 44)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(KronoTheme.surface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(KronoTheme.border, lineWidth: 1)
+            )
+            .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             #endif
         }
         .buttonStyle(.plain)
@@ -483,7 +493,7 @@ struct iOSCompanionView: View {
             
             VStack(alignment: .leading, spacing: 0) {
                 // Top Telemetry Header
-                HStack(alignment: .center, spacing: 12) {
+                HStack(alignment: .center, spacing: 8) {
                     Image("AppLogo")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -510,7 +520,7 @@ struct iOSCompanionView: View {
                     
                     Spacer()
                     
-                    HStack(spacing: 8) {
+                    HStack(spacing: 4) {
                         BuiltBySamWatermark()
 
                         Button {
@@ -519,7 +529,7 @@ struct iOSCompanionView: View {
                             Image(systemName: "gearshape")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(KronoTheme.inkMuted)
-                                .frame(width: 38, height: 38)
+                                .frame(width: 36, height: 36)
                                 .background(KronoTheme.surface, in: Circle())
                                 .overlay(Circle().strokeBorder(KronoTheme.border, lineWidth: 1))
                         }
@@ -530,7 +540,7 @@ struct iOSCompanionView: View {
                             Image(systemName: "arrow.triangle.2.circlepath")
                                 .font(.system(size: 15, weight: .semibold))
                                 .foregroundStyle(KronoTheme.inkPrimary)
-                                .frame(width: 38, height: 38)
+                                .frame(width: 36, height: 36)
                                 .background(KronoTheme.surface, in: Circle())
                                 .overlay(Circle().strokeBorder(KronoTheme.border, lineWidth: 1))
                         }
