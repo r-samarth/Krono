@@ -1,5 +1,25 @@
 import SwiftUI
 
+// MARK: - Clickable Open-Source Credit
+struct BuiltBySamWatermark: View {
+    var body: some View {
+        Link(destination: URL(string: "https://github.com/r-samarth/Krono")!) {
+            VStack(alignment: .trailing, spacing: 1) {
+                Text("Built by Sam")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(KronoTheme.inkMuted)
+
+                Text("Open source")
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(KronoTheme.inkMuted.opacity(0.72))
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Built by Sam. Open source. View Krono on GitHub")
+    }
+}
+
 // MARK: - 1. KINETIC CHECKBOX PRIMITIVE
 struct SemanticCheckbox: View {
     let isCompleted: Bool
@@ -341,8 +361,16 @@ struct MacMenuBarPopoverView: View {
                 .padding(14)
             }
             
+            HStack {
+                Spacer()
+                BuiltBySamWatermark()
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 6)
+            .padding(.bottom, 4)
+
             Divider().overlay(KronoTheme.border)
-            
+
             // Footer Status Bar
             HStack {
                 HStack(spacing: 6) {
@@ -500,7 +528,15 @@ struct iOSCompanionView: View {
                     .padding(.bottom, 160)
                 }
             }
-            
+
+            HStack {
+                Spacer()
+                BuiltBySamWatermark()
+            }
+            .padding(.horizontal, 22)
+            .padding(.top, 4)
+            .padding(.bottom, 8)
+
             // Bottom-Anchored Thumb Dock for Creating Tasks on iPhone
             VStack(spacing: 12) {
                 if showDatePicker {
