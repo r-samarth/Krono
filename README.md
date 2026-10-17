@@ -1,7 +1,7 @@
 
 # Krono // Minimalist Menu Bar & Mobile To-Do System
 
-An ultra-refined, high-craft to-do ecosystem built specifically for **macOS Menu Bar** and **iPhone**, adhering to strict functional semantics (Anti-AI Slop Design System) and backed by **Supabase PostgreSQL + Realtime Sync**.
+An ultra-refined, high-craft to-do ecosystem built specifically for **macOS Menu Bar** and **iPhone**, adhering to strict functional semantics  and backed by **Supabase PostgreSQL + Realtime Sync**.
 
 ---
 
