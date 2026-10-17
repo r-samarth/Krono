@@ -138,6 +138,20 @@ final class TaskStore: ObservableObject {
     private let configUrlKey = "krono_supabase_url"
     private let configAnonKey = "krono_supabase_key"
     private var syncTimer: AnyCancellable?
+    private let pendingChangesKey = "krono_pending_changes_v1"
+
+    private struct PendingChanges: Codable {
+        var upserts: [TaskItem]
+        var deletions: [UUID]
+    }
+
+    // A small durable outbox prevents a temporary network failure from losing a task edit.
+    private var pendingUpserts: [UUID: TaskItem] = [:]
+    private var pendingDeletes: Set<UUID> = []
+    private var inFlightUpserts: Set<UUID> = []
+    private var inFlightDeletes: Set<UUID> = []
+    private var isFetchingRemote = false
+    private var localMutationRevision: UInt64 = 0
     
     var activeCount: Int {
         tasks.filter { !$0.isCompleted }.count
@@ -159,6 +173,7 @@ final class TaskStore: ObservableObject {
             self.supabaseKey = savedKey
         }
         
+        loadPendingChanges()
         loadFromLocalCache()
         NotificationManager.shared.requestPermission()
         
@@ -196,29 +211,37 @@ final class TaskStore: ObservableObject {
             tasks.insert(newTask, at: 0)
             sortTasks()
         }
+        localMutationRevision &+= 1
+        markForUpsert(newTask)
         triggerHaptic(isSuccess: false)
         saveToLocalCache()
-        
+
         Task { await pushUpsert(newTask) }
     }
     
     func toggleTask(_ task: TaskItem) {
         guard let idx = tasks.firstIndex(where: { $0.id == task.id }) else { return }
-        
+
+        // Capture the updated task BEFORE sorting: sorting can move it to a different index.
+        var updated: TaskItem?
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             tasks[idx].isCompleted.toggle()
             tasks[idx].updatedAt = Date()
+            updated = tasks[idx]
             sortTasks()
         }
-        
-        triggerHaptic(isSuccess: tasks[idx].isCompleted)
+
+        guard let updated else { return }
+        localMutationRevision &+= 1
+        markForUpsert(updated)
+        triggerHaptic(isSuccess: updated.isCompleted)
         saveToLocalCache()
-        
-        let updated = tasks[idx]
         Task { await pushUpsert(updated) }
     }
-    
+
     func deleteTask(_ task: TaskItem) {
+        localMutationRevision &+= 1
+        markForDeletion(task.id)
         withAnimation(.easeOut(duration: 0.2)) {
             tasks.removeAll { $0.id == task.id }
         }
@@ -242,11 +265,47 @@ final class TaskStore: ObservableObject {
             UserDefaults.standard.set(encoded, forKey: cacheKey)
         }
     }
-    
+
+    private func loadPendingChanges() {
+        guard let data = UserDefaults.standard.data(forKey: pendingChangesKey),
+              let changes = try? JSONDecoder().decode(PendingChanges.self, from: data) else { return }
+        pendingUpserts = Dictionary(changes.upserts.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+        pendingDeletes = Set(changes.deletions)
+    }
+
+    private func persistPendingChanges() {
+        let changes = PendingChanges(upserts: Array(pendingUpserts.values), deletions: Array(pendingDeletes))
+        if let encoded = try? JSONEncoder().encode(changes) {
+            UserDefaults.standard.set(encoded, forKey: pendingChangesKey)
+        }
+    }
+
+    private func markForUpsert(_ task: TaskItem) {
+        pendingUpserts[task.id] = task
+        pendingDeletes.remove(task.id)
+        persistPendingChanges()
+    }
+
+    private func markForDeletion(_ id: UUID) {
+        pendingUpserts.removeValue(forKey: id)
+        pendingDeletes.insert(id)
+        persistPendingChanges()
+    }
+
     private func loadFromLocalCache() {
         if let data = UserDefaults.standard.data(forKey: cacheKey),
            let decoded = try? JSONDecoder().decode([TaskItem].self, from: data) {
             self.tasks = decoded
+            for id in pendingDeletes {
+                self.tasks.removeAll { $0.id == id }
+            }
+            for task in pendingUpserts.values {
+                if let index = self.tasks.firstIndex(where: { $0.id == task.id }) {
+                    self.tasks[index] = task
+                } else {
+                    self.tasks.append(task)
+                }
+            }
             sortTasks()
         } else {
             // Seed sample tasks on first launch
@@ -262,61 +321,131 @@ final class TaskStore: ObservableObject {
     
     // MARK: - Supabase REST Sync
     func fetchRemoteTasks() async {
-        guard hasCloudConfig,
-              let url = URL(string: "\(supabaseURL)/rest/v1/tasks?select=*&order=due_at.asc") else { return }
-        
+        guard hasCloudConfig, !isFetchingRemote,
+              let url = URL(string: "\(supabaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/rest/v1/tasks?select=*&order=due_at.asc") else { return }
+
+        isFetchingRemote = true
         isSyncing = true
-        defer { isSyncing = false }
-        
+        let revisionAtStart = localMutationRevision
+        defer {
+            isFetchingRemote = false
+            isSyncing = false
+        }
+
         var req = URLRequest(url: url)
         req.setValue(supabaseKey, forHTTPHeaderField: "apikey")
         req.setValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
-        
+
         do {
             let (data, response) = try await URLSession.shared.data(for: req)
-            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                lastSyncError = "HTTP error during fetch"
+            guard let httpResponse = response as? HTTPURLResponse else {
+                lastSyncError = "Invalid response while fetching tasks"
                 return
             }
-            lastSyncError = nil
-            
+            guard (200...299).contains(httpResponse.statusCode) else {
+                lastSyncError = "Task fetch failed (HTTP \(httpResponse.statusCode))"
+                return
+            }
+
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .custom { decoder in
                 let container = try decoder.singleValueContainer()
-                let str = try container.decode(String.self)
-                let f1 = ISO8601DateFormatter()
-                f1.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-                if let d = f1.date(from: str) { return d }
-                let f2 = ISO8601DateFormatter()
-                f2.formatOptions = [.withInternetDateTime]
-                if let d = f2.date(from: str) { return d }
-                return Date()
+                let string = try container.decode(String.self)
+                let fractional = ISO8601DateFormatter()
+                fractional.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+                if let date = fractional.date(from: string) { return date }
+                let standard = ISO8601DateFormatter()
+                standard.formatOptions = [.withInternetDateTime]
+                if let date = standard.date(from: string) { return date }
+                throw DecodingError.dataCorruptedError(in: container, debugDescription: "Invalid ISO-8601 task date: \(string)")
             }
             let remoteTasks = try decoder.decode([TaskItem].self, from: data)
-            if remoteTasks != self.tasks {
+
+            // Never apply a snapshot that was fetched while the user was changing tasks.
+            guard revisionAtStart == localMutationRevision else { return }
+
+            let localByID = Dictionary(tasks.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
+            let remoteIDs = Set(remoteTasks.map(\.id))
+            var mergedByID: [UUID: TaskItem] = [:]
+
+            // Merge per task, not by replacing the whole local list. A stale cloud value
+            // must not undo a newer local completion state.
+            for remote in remoteTasks {
+                if pendingDeletes.contains(remote.id) { continue }
+
+                if let pending = pendingUpserts[remote.id] {
+                    // Supabase timestamps may be rounded to milliseconds by ISO-8601 encoding.
+                    if pending.updatedAt.timeIntervalSince(remote.updatedAt) >= -0.002 {
+                        mergedByID[remote.id] = pending
+                    } else {
+                        // Another device has a genuinely newer version.
+                        pendingUpserts.removeValue(forKey: remote.id)
+                        mergedByID[remote.id] = remote
+                    }
+                    continue
+                }
+
+                if let local = localByID[remote.id], local.updatedAt.timeIntervalSince(remote.updatedAt) > 0.002 {
+                    // Recover edits made by older app builds and queue them for repair.
+                    mergedByID[local.id] = local
+                    pendingUpserts[local.id] = local
+                } else {
+                    mergedByID[remote.id] = remote
+                }
+            }
+
+            // Keep local additions that are waiting to reach Supabase.
+            for (id, pending) in pendingUpserts where !remoteIDs.contains(id) && !pendingDeletes.contains(id) {
+                mergedByID[id] = pending
+            }
+
+            let mergedTasks = Array(mergedByID.values)
+            if mergedTasks != tasks {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) {
-                    self.tasks = remoteTasks
-                    self.sortTasks()
+                    tasks = mergedTasks
+                    sortTasks()
                 }
                 saveToLocalCache()
+            } else {
+                sortTasks()
             }
+            persistPendingChanges()
+            lastSyncError = nil
+            await flushPendingChanges()
         } catch {
-            lastSyncError = error.localizedDescription
-            // Offline fallback remains active automatically
+            lastSyncError = "Task sync failed: \(error.localizedDescription)"
         }
     }
-    
+
+    private func flushPendingChanges() async {
+        guard hasCloudConfig else { return }
+        for id in Array(pendingDeletes) {
+            await pushDelete(id)
+        }
+        for task in Array(pendingUpserts.values) {
+            await pushUpsert(task)
+        }
+    }
+
     private func pushUpsert(_ task: TaskItem) async {
-        guard hasCloudConfig,
-              let url = URL(string: "\(supabaseURL)/rest/v1/tasks") else { return }
-        
-        var req = URLRequest(url: url)
+        guard hasCloudConfig, !inFlightUpserts.contains(task.id),
+              let baseURL = URL(string: "\(supabaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/rest/v1/tasks?on_conflict=id") else { return }
+
+        inFlightUpserts.insert(task.id)
+        defer {
+            inFlightUpserts.remove(task.id)
+            if let newest = pendingUpserts[task.id], newest.updatedAt != task.updatedAt {
+                Task { await self.pushUpsert(newest) }
+            }
+        }
+
+        var req = URLRequest(url: baseURL)
         req.httpMethod = "POST"
         req.setValue(supabaseKey, forHTTPHeaderField: "apikey")
         req.setValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        req.setValue("resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
-        
+        req.setValue("resolution=merge-duplicates,return=minimal", forHTTPHeaderField: "Prefer")
+
         let encoder = JSONEncoder()
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -324,20 +453,60 @@ final class TaskStore: ObservableObject {
             var container = enc.singleValueContainer()
             try container.encode(formatter.string(from: date))
         }
-        
-        req.httpBody = try? encoder.encode(task)
-        _ = try? await URLSession.shared.data(for: req)
+
+        do {
+            req.httpBody = try encoder.encode(task)
+            let (_, response) = try await URLSession.shared.data(for: req)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                lastSyncError = "Invalid response while saving task"
+                return
+            }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                lastSyncError = "Task save failed (HTTP \(httpResponse.statusCode))"
+                return
+            }
+
+            if pendingUpserts[task.id]?.updatedAt == task.updatedAt {
+                pendingUpserts.removeValue(forKey: task.id)
+                persistPendingChanges()
+            }
+            if pendingUpserts.isEmpty && pendingDeletes.isEmpty {
+                lastSyncError = nil
+            }
+        } catch {
+            lastSyncError = "Task save failed: \(error.localizedDescription)"
+        }
     }
-    
+
     private func pushDelete(_ id: UUID) async {
-        guard hasCloudConfig,
-              let url = URL(string: "\(supabaseURL)/rest/v1/tasks?id=eq.\(id.uuidString)") else { return }
-        
+        guard hasCloudConfig, !inFlightDeletes.contains(id),
+              let url = URL(string: "\(supabaseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/rest/v1/tasks?id=eq.\(id.uuidString)") else { return }
+
+        inFlightDeletes.insert(id)
+        defer { inFlightDeletes.remove(id) }
+
         var req = URLRequest(url: url)
         req.httpMethod = "DELETE"
         req.setValue(supabaseKey, forHTTPHeaderField: "apikey")
         req.setValue("Bearer \(supabaseKey)", forHTTPHeaderField: "Authorization")
-        _ = try? await URLSession.shared.data(for: req)
+        do {
+            let (_, response) = try await URLSession.shared.data(for: req)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                lastSyncError = "Invalid response while deleting task"
+                return
+            }
+            guard (200...299).contains(httpResponse.statusCode) else {
+                lastSyncError = "Task deletion failed (HTTP \(httpResponse.statusCode))"
+                return
+            }
+            pendingDeletes.remove(id)
+            persistPendingChanges()
+            if pendingUpserts.isEmpty && pendingDeletes.isEmpty {
+                lastSyncError = nil
+            }
+        } catch {
+            lastSyncError = "Task deletion failed: \(error.localizedDescription)"
+        }
     }
     
     private func triggerHaptic(isSuccess: Bool) {
