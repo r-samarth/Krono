@@ -15,6 +15,7 @@ Krono helps you capture tasks quickly, set deadlines, and keep your task list in
 - **Mac + iPhone sync** — share tasks between devices through Supabase. The app checks for remote changes about every four seconds while running.
 - **Offline-friendly storage** — your current task list is cached locally, and pending edits are retained for retry if a cloud request fails.
 - **Deadline notifications** — optional alerts 30 minutes before a deadline and at the deadline.
+- **Month-end cleanup and summary** — completed tasks are cleared after their month ends, and the iPhone schedules a monthly summary notification.
 
 ## Requirements
 
@@ -110,6 +111,14 @@ If you make a change while offline, leave Krono installed and open it again when
 ### Notifications
 
 Krono can schedule a reminder about 30 minutes before a deadline and another at the deadline. Notifications require permission from macOS or iOS. Completed tasks are not scheduled for future deadline alerts.
+
+## Monthly cleanup and summary
+
+- On the iPhone, Krono schedules a local notification for **11:59 PM on the last calendar day of each month**.
+- The notification reports how many tasks are currently completed for that month and how many active tasks are overdue, using the most recently synced task list.
+- Completed tasks remain available through their completion month. After the calendar rolls over, Krono removes older completed tasks from the local list and queues their deletion from Supabase. If the app was closed during month-end, cleanup runs when Krono next starts or syncs.
+- Keep Krono open or open it periodically near the end of the month to refresh the summary counts. iOS may suspend the app in the background, so the notification uses the latest counts known to the iPhone when it was last scheduled; it cannot guarantee live counts if tasks change elsewhere while the iPhone app is not syncing.
+- Allow notifications for Krono in iPhone Settings so the reminder can appear.
 
 ## Troubleshooting
 
