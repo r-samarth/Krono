@@ -149,9 +149,9 @@ final class NotificationManager {
         let overdueCount = tasks.filter { !$0.isCompleted && $0.dueAt < now }.count
         let completedLabel = completedCount == 1 ? "task" : "tasks"
         let overdueLabel = overdueCount == 1 ? "overdue task" : "overdue tasks"
-        let monthName = DateFormatter().monthSymbols[
-            max(0, min(11, calendar.component(.month, from: summaryMonth.start) - 1))
-        ]
+        let monthFormatter = DateFormatter()
+        monthFormatter.dateFormat = "MMMM"
+        let monthName = monthFormatter.string(from: summaryMonth.start)
 
         schedule(
             id: "krono-monthly-summary",
