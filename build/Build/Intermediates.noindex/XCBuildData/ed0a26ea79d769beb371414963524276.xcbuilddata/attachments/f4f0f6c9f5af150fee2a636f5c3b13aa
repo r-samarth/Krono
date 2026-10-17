@@ -1,0 +1,31 @@
+{
+  "" : {
+    "const-values" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary.swiftconstvalues",
+    "dependencies" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary.d",
+    "diagnostics" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary.dia",
+    "emit-module-dependencies" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary-emit-module.d",
+    "emit-module-diagnostics" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary-emit-module.dia",
+    "pch" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary-Bridging-header.pch",
+    "swift-dependencies" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/Krono-macOS-primary.swiftdeps"
+  },
+  "/Users/samarthr/ISO-todo list/Sources/KronoApp.swift" : {
+    "index-unit-output-path" : "/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoApp.o",
+    "llvm-bc" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoApp.bc",
+    "object" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoApp.o"
+  },
+  "/Users/samarthr/ISO-todo list/Sources/KronoEngine.swift" : {
+    "index-unit-output-path" : "/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoEngine.o",
+    "llvm-bc" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoEngine.bc",
+    "object" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoEngine.o"
+  },
+  "/Users/samarthr/ISO-todo list/Sources/KronoViews.swift" : {
+    "index-unit-output-path" : "/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoViews.o",
+    "llvm-bc" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoViews.bc",
+    "object" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/KronoViews.o"
+  },
+  "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/DerivedSources/GeneratedAssetSymbols.swift" : {
+    "index-unit-output-path" : "/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/GeneratedAssetSymbols.o",
+    "llvm-bc" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/GeneratedAssetSymbols.bc",
+    "object" : "/Users/samarthr/ISO-todo list/build/Build/Intermediates.noindex/Krono.build/Release/Krono-macOS.build/Objects-normal/arm64/GeneratedAssetSymbols.o"
+  }
+}
