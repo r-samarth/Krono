@@ -88,7 +88,7 @@ final class NotificationManager {
     func syncNotifications(for tasks: [TaskItem]) {
         let center = UNUserNotificationCenter.current()
         center.removeAllPendingNotificationRequests()
-        
+
         for task in tasks where !task.isCompleted && task.dueAt > Date() {
             // 1. 30-Minute Heads-Up Reminder
             let warningDate = task.dueAt.addingTimeInterval(-30 * 60)
@@ -108,7 +108,59 @@ final class NotificationManager {
                 date: task.dueAt
             )
         }
+
+        #if os(iOS)
+        scheduleMonthlySummary(for: tasks)
+        #endif
     }
+
+    #if os(iOS)
+    /// Schedules the next month-end notification using the latest task state known to this iPhone.
+    private func scheduleMonthlySummary(for tasks: [TaskItem]) {
+        let calendar = Calendar.current
+        let now = Date()
+        guard let currentMonth = calendar.dateInterval(of: .month, for: now) else { return }
+
+        var summaryMonth = currentMonth
+        var lastDay = currentMonth.end.addingTimeInterval(-1)
+        var components = calendar.dateComponents([.year, .month, .day], from: lastDay)
+        components.hour = 23
+        components.minute = 59
+        components.second = 0
+        var summaryDate = calendar.date(from: components) ?? lastDay
+
+        // If this month's 23:59 reminder has already passed, schedule the next month's.
+        if summaryDate <= now,
+           let nextMonth = calendar.dateInterval(of: .month, for: currentMonth.end) {
+            summaryMonth = nextMonth
+            lastDay = nextMonth.end.addingTimeInterval(-1)
+            components = calendar.dateComponents([.year, .month, .day], from: lastDay)
+            components.hour = 23
+            components.minute = 59
+            components.second = 0
+            summaryDate = calendar.date(from: components) ?? lastDay
+        }
+
+        let completedCount = tasks.filter {
+            $0.isCompleted &&
+            $0.updatedAt >= summaryMonth.start &&
+            $0.updatedAt < summaryMonth.end
+        }.count
+        let overdueCount = tasks.filter { !$0.isCompleted && $0.dueAt < now }.count
+        let completedLabel = completedCount == 1 ? "task" : "tasks"
+        let overdueLabel = overdueCount == 1 ? "overdue task" : "overdue tasks"
+        let monthName = DateFormatter().monthSymbols[
+            max(0, min(11, calendar.component(.month, from: summaryMonth.start) - 1))
+        ]
+
+        schedule(
+            id: "krono-monthly-summary",
+            title: "Krono \(monthName) Summary",
+            body: "Completed \(completedCount) \(completedLabel) this month. Still \(overdueCount) \(overdueLabel) pending.",
+            date: summaryDate
+        )
+    }
+    #endif
     
     private func schedule(id: String, title: String, body: String, date: Date) {
         let content = UNMutableNotificationContent()
@@ -256,7 +308,28 @@ final class TaskStore: ObservableObject {
             }
             return $0.dueAt < $1.dueAt
         }
+
+        removeCompletedTasksFromPreviousMonths()
         NotificationManager.shared.syncNotifications(for: tasks)
+    }
+
+    /// Keep completed tasks for their month, then remove them on the first sync after month rollover.
+    private func removeCompletedTasksFromPreviousMonths() {
+        guard let currentMonth = Calendar.current.dateInterval(of: .month, for: Date()) else { return }
+
+        let expiredIDs = Set(tasks.filter {
+            $0.isCompleted && $0.updatedAt < currentMonth.start
+        }.map(\.id))
+
+        guard !expiredIDs.isEmpty else { return }
+
+        // Persist deletion intents first so they survive an offline period or app restart.
+        for id in expiredIDs {
+            markForDeletion(id)
+        }
+        tasks.removeAll { expiredIDs.contains($0.id) }
+        localMutationRevision &+= 1
+        saveToLocalCache()
     }
     
     // MARK: - Local Offline Persistence
