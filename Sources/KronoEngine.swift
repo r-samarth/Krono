@@ -127,8 +127,8 @@ final class NotificationManager {
 @MainActor
 final class TaskStore: ObservableObject {
     // Paste Supabase project credentials here or configure dynamically via the Settings dialog
-    @Published var supabaseURL: String = "https://YOUR_PROJECT_ID.supabase.co"
-    @Published var supabaseKey: String = "YOUR_SUPABASE_ANON_KEY"
+    @Published var supabaseURL: String = "https://uuymrzihjlbvkkjdnlfo.supabase.co"
+    @Published var supabaseKey: String = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InV1eW1yemloamxidmtramRubGZvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIyMTg1MDksImV4cCI6MjEwNzc5NDUwOX0.CtEBxMv_QUbBTIJggGLBBlPeO9iEzGB8Gr98LZv_rGA"
     
     @Published var tasks: [TaskItem] = []
     @Published var isSyncing: Bool = false

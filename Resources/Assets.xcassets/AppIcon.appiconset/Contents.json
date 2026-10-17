@@ -1,13 +1,74 @@
 {
-  "images" : [
+  "images": [
     {
-      "idiom" : "universal",
-      "platform" : "ios",
-      "size" : "1024x1024"
+      "size": "1024x1024",
+      "idiom": "universal",
+      "platform": "ios",
+      "filename": "AppIcon-1024.png"
+    },
+    {
+      "size": "16x16",
+      "idiom": "mac",
+      "scale": "1x",
+      "filename": "AppIcon-mac-16x16_1x.png"
+    },
+    {
+      "size": "16x16",
+      "idiom": "mac",
+      "scale": "2x",
+      "filename": "AppIcon-mac-16x16_2x.png"
+    },
+    {
+      "size": "32x32",
+      "idiom": "mac",
+      "scale": "1x",
+      "filename": "AppIcon-mac-32x32_1x.png"
+    },
+    {
+      "size": "32x32",
+      "idiom": "mac",
+      "scale": "2x",
+      "filename": "AppIcon-mac-32x32_2x.png"
+    },
+    {
+      "size": "128x128",
+      "idiom": "mac",
+      "scale": "1x",
+      "filename": "AppIcon-mac-128x128_1x.png"
+    },
+    {
+      "size": "128x128",
+      "idiom": "mac",
+      "scale": "2x",
+      "filename": "AppIcon-mac-128x128_2x.png"
+    },
+    {
+      "size": "256x256",
+      "idiom": "mac",
+      "scale": "1x",
+      "filename": "AppIcon-mac-256x256_1x.png"
+    },
+    {
+      "size": "256x256",
+      "idiom": "mac",
+      "scale": "2x",
+      "filename": "AppIcon-mac-256x256_2x.png"
+    },
+    {
+      "size": "512x512",
+      "idiom": "mac",
+      "scale": "1x",
+      "filename": "AppIcon-mac-512x512_1x.png"
+    },
+    {
+      "size": "512x512",
+      "idiom": "mac",
+      "scale": "2x",
+      "filename": "AppIcon-mac-512x512_2x.png"
     }
   ],
-  "info" : {
-    "author" : "xcode",
-    "version" : 1
+  "info": {
+    "author": "xcode",
+    "version": 1
   }
 }

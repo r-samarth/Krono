@@ -4,16 +4,35 @@ import SwiftUI
 struct BuiltBySamWatermark: View {
     var body: some View {
         Link(destination: URL(string: "https://github.com/r-samarth/Krono")!) {
-            VStack(alignment: .trailing, spacing: 1) {
+            #if os(macOS)
+            HStack(spacing: 3) {
                 Text("Built by Sam")
-                    .font(.system(size: 10, weight: .semibold))
+                    .font(.system(size: 9.5, weight: .medium))
                     .foregroundStyle(KronoTheme.inkMuted)
-
-                Text("Open source")
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(KronoTheme.inkMuted.opacity(0.72))
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 7, weight: .semibold))
+                    .foregroundStyle(KronoTheme.inkMuted.opacity(0.6))
             }
+            .padding(.horizontal, 7)
+            .padding(.vertical, 3)
+            .background(Color.white.opacity(0.04), in: Capsule())
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.08), lineWidth: 0.5))
             .contentShape(Rectangle())
+            #else
+            HStack(spacing: 4) {
+                Text("By Sam")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(KronoTheme.inkMuted)
+                Image(systemName: "arrow.up.right")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(KronoTheme.inkMuted.opacity(0.6))
+            }
+            .padding(.horizontal, 10)
+            .frame(height: 38)
+            .background(KronoTheme.surface, in: Capsule())
+            .overlay(Capsule().strokeBorder(KronoTheme.border, lineWidth: 1))
+            .contentShape(Rectangle())
+            #endif
         }
         .buttonStyle(.plain)
         .accessibilityLabel("Built by Sam. Open source. View Krono on GitHub")
@@ -155,7 +174,17 @@ struct CloudSettingsView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack {
+            HStack(spacing: 12) {
+                Image("AppLogo")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 36, height: 36)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(Color.white.opacity(0.12), lineWidth: 0.5)
+                    )
+
                 VStack(alignment: .leading, spacing: 2) {
                     Text("SUPABASE CLOUD SYNC")
                         .font(.system(size: 11, weight: .bold, design: .monospaced))
@@ -255,13 +284,24 @@ struct MacMenuBarPopoverView: View {
             // Header Bar
             HStack {
                 HStack(spacing: 8) {
-                    Circle()
-                        .fill(store.activeCount > 0 ? KronoTheme.accent : KronoTheme.completed)
-                        .frame(width: 8, height: 8)
+                    Image("AppLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 20, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.15), lineWidth: 0.5)
+                        )
+
                     Text("KRONO")
                         .font(.system(size: 12, weight: .bold, design: .monospaced))
                         .tracking(1.4)
                         .foregroundStyle(KronoTheme.inkPrimary)
+
+                    Circle()
+                        .fill(store.activeCount > 0 ? KronoTheme.accent : KronoTheme.completed)
+                        .frame(width: 6, height: 6)
                 }
                 
                 Spacer()
@@ -361,18 +401,10 @@ struct MacMenuBarPopoverView: View {
                 .padding(14)
             }
             
-            HStack {
-                Spacer()
-                BuiltBySamWatermark()
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 6)
-            .padding(.bottom, 4)
-
             Divider().overlay(KronoTheme.border)
 
             // Footer Status Bar
-            HStack {
+            HStack(spacing: 8) {
                 HStack(spacing: 6) {
                     Circle()
                         .fill(store.hasCloudConfig ? KronoTheme.completed : KronoTheme.warning)
@@ -387,6 +419,8 @@ struct MacMenuBarPopoverView: View {
                 }
                 
                 Spacer()
+
+                BuiltBySamWatermark()
                 
                 Button {
                     showSettings = true
@@ -449,21 +483,36 @@ struct iOSCompanionView: View {
             
             VStack(alignment: .leading, spacing: 0) {
                 // Top Telemetry Header
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .center, spacing: 12) {
+                    Image("AppLogo")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 44, height: 44)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                .strokeBorder(Color.white.opacity(0.14), lineWidth: 0.8)
+                        )
+                        .shadow(color: KronoTheme.accent.opacity(0.18), radius: 8, y: 3)
+
+                    VStack(alignment: .leading, spacing: 2) {
                         Text("KRONO // MOBILE")
                             .font(.system(size: 11, weight: .bold, design: .monospaced))
                             .tracking(1.6)
                             .foregroundStyle(KronoTheme.accent)
                         
-                        Text("\(store.activeCount) Active Tasks")
-                            .font(.system(size: 28, weight: .bold))
+                        Text("\(store.activeCount) Active")
+                            .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(KronoTheme.inkPrimary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                     
                     Spacer()
                     
                     HStack(spacing: 8) {
+                        BuiltBySamWatermark()
+
                         Button {
                             showSettings = true
                         } label: {
@@ -528,14 +577,6 @@ struct iOSCompanionView: View {
                     .padding(.bottom, 160)
                 }
             }
-
-            HStack {
-                Spacer()
-                BuiltBySamWatermark()
-            }
-            .padding(.horizontal, 22)
-            .padding(.top, 4)
-            .padding(.bottom, 8)
 
             // Bottom-Anchored Thumb Dock for Creating Tasks on iPhone
             VStack(spacing: 12) {
