@@ -479,6 +479,163 @@ struct MacMenuBarPopoverView: View {
     }
 }
 
+// MARK: - Monthly Notification Archive
+struct MonthlySummaryHistoryView: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var summaries: [MonthlySummaryRecord] = []
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                KronoTheme.canvas.ignoresSafeArea()
+
+                if summaries.isEmpty {
+                    VStack(spacing: 14) {
+                        Image(systemName: "archivebox")
+                            .font(.system(size: 34, weight: .light))
+                            .foregroundStyle(KronoTheme.accent)
+
+                        Text("No monthly summaries yet")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(KronoTheme.inkPrimary)
+
+                        Text("Krono will save this month's notification summary here and keep it updated as your task counts change. Notifications created before this archive was added cannot be imported automatically.")
+                            .font(.system(size: 13))
+                            .foregroundStyle(KronoTheme.inkMuted)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(30)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(summaries) { summary in
+                                summaryCard(summary)
+                            }
+                        }
+                        .padding(16)
+                    }
+                }
+            }
+            .navigationTitle("Monthly History")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(KronoTheme.accent)
+                }
+            }
+            .onAppear {
+                summaries = NotificationManager.shared.loadMonthlySummaries()
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+
+    @ViewBuilder
+    private func summaryCard(_ summary: MonthlySummaryRecord) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(monthTitle(summary.monthStart))
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(KronoTheme.inkPrimary)
+
+                Spacer()
+
+                Text("\(summary.progressPercentage)%")
+                    .font(.system(size: 15, weight: .bold).monospacedDigit())
+                    .foregroundStyle(KronoTheme.completed)
+            }
+
+            HStack(spacing: 10) {
+                metric(
+                    label: "COMPLETED",
+                    count: summary.completedCount,
+                    color: KronoTheme.completed
+                )
+                metric(
+                    label: "PENDING OVERDUE",
+                    count: summary.pendingCount,
+                    color: KronoTheme.warning
+                )
+            }
+
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("Progress")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(KronoTheme.inkMuted)
+                    Spacer()
+                    Text("Completion estimate")
+                        .font(.system(size: 10))
+                        .foregroundStyle(KronoTheme.inkMuted)
+                }
+
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(KronoTheme.border)
+                        Capsule()
+                            .fill(KronoTheme.completed)
+                            .frame(
+                                width: geometry.size.width *
+                                    CGFloat(min(max(summary.progressPercentage, 0), 100)) / 100
+                            )
+                    }
+                }
+                .frame(height: 6)
+            }
+
+            Text(summary.notificationTitle)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(KronoTheme.inkPrimary)
+
+            Text(summary.notificationBody)
+                .font(.system(size: 12))
+                .foregroundStyle(KronoTheme.inkMuted)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Text("Last updated \(summary.savedAt.formatted(date: .abbreviated, time: .shortened))")
+                .font(.system(size: 10))
+                .foregroundStyle(KronoTheme.inkMuted.opacity(0.8))
+        }
+        .padding(15)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(KronoTheme.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(KronoTheme.border, lineWidth: 1)
+        )
+    }
+
+    private func metric(label: String, count: Int, color: Color) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(label)
+                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                .tracking(0.6)
+                .foregroundStyle(KronoTheme.inkMuted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            Text("\(count)")
+                .font(.system(size: 23, weight: .bold).monospacedDigit())
+                .foregroundStyle(color)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .fill(KronoTheme.canvas)
+        )
+    }
+
+    private func monthTitle(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MMMM yyyy"
+        return formatter.string(from: date)
+    }
+}
+
 // MARK: - 6. iPHONE COMPANION APPLICATION VIEW
 struct iOSCompanionView: View {
     @ObservedObject var store: TaskStore
@@ -486,6 +643,7 @@ struct iOSCompanionView: View {
     @State private var customDate: Date = Date().addingTimeInterval(3600)
     @State private var showDatePicker: Bool = false
     @State private var showSettings: Bool = false
+    @State private var showMonthlyHistory: Bool = false
     
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -522,6 +680,19 @@ struct iOSCompanionView: View {
                     
                     HStack(spacing: 4) {
                         BuiltBySamWatermark()
+
+                        Button {
+                            showMonthlyHistory = true
+                        } label: {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(KronoTheme.inkMuted)
+                                .frame(width: 36, height: 36)
+                                .background(KronoTheme.surface, in: Circle())
+                                .overlay(Circle().strokeBorder(KronoTheme.border, lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Monthly notification history")
 
                         Button {
                             showSettings = true
@@ -649,6 +820,9 @@ struct iOSCompanionView: View {
             .padding(.bottom, 12)
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $showMonthlyHistory) {
+            MonthlySummaryHistoryView()
+        }
         .sheet(isPresented: $showSettings) {
             CloudSettingsView(store: store)
         }
