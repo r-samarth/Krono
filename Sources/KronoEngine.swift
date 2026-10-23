@@ -77,9 +77,24 @@ struct TaskItem: Identifiable, Codable, Equatable {
     }
 }
 
+// MARK: - Saved Monthly Notification History
+struct MonthlySummaryRecord: Codable, Identifiable, Equatable {
+    let monthKey: String
+    let monthStart: Date
+    let completedCount: Int
+    let pendingCount: Int
+    let progressPercentage: Int
+    let notificationTitle: String
+    let notificationBody: String
+    let savedAt: Date
+
+    var id: String { monthKey }
+}
+
 // MARK: - 3. NATIVE DEADLINE NOTIFICATION SCHEDULER (iOS & macOS)
 final class NotificationManager {
     static let shared = NotificationManager()
+    private let monthlyArchiveKey = "krono_monthly_summary_archive_v1"
     
     func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
@@ -115,7 +130,7 @@ final class NotificationManager {
     }
 
     #if os(iOS)
-    /// Schedules the next month-end notification using the latest task state known to this iPhone.
+    /// Keeps a rolling snapshot of this month's summary and schedules its local notification.
     private func scheduleMonthlySummary(for tasks: [TaskItem]) {
         let calendar = Calendar.current
         let now = Date()
@@ -146,23 +161,77 @@ final class NotificationManager {
             $0.updatedAt >= summaryMonth.start &&
             $0.updatedAt < summaryMonth.end
         }.count
-        let overdueCount = tasks.filter { !$0.isCompleted && $0.dueAt < now }.count
+        let pendingCount = tasks.filter { !$0.isCompleted && $0.dueAt < now }.count
         let completedLabel = completedCount == 1 ? "task" : "tasks"
-        let overdueLabel = overdueCount == 1 ? "overdue task" : "overdue tasks"
+        let pendingLabel = pendingCount == 1 ? "overdue task" : "overdue tasks"
         let monthFormatter = DateFormatter()
         monthFormatter.dateFormat = "MMMM"
         let monthName = monthFormatter.string(from: summaryMonth.start)
+        let totalCount = completedCount + pendingCount
+        let progress = totalCount == 0
+            ? 0
+            : Int((Double(completedCount) / Double(totalCount) * 100).rounded())
+        let title = "Krono \(monthName) Summary"
+        let body = "Completed \(completedCount) \(completedLabel) this month. Still \(pendingCount) \(pendingLabel) pending. Progress: \(progress)%."
+
+        // Only archive a snapshot for the actual current month, never a future month's placeholder.
+        if calendar.isDate(summaryMonth.start, equalTo: currentMonth.start, toGranularity: .month) {
+            let keyFormatter = DateFormatter()
+            keyFormatter.dateFormat = "yyyy-MM"
+            let record = MonthlySummaryRecord(
+                monthKey: keyFormatter.string(from: summaryMonth.start),
+                monthStart: summaryMonth.start,
+                completedCount: completedCount,
+                pendingCount: pendingCount,
+                progressPercentage: progress,
+                notificationTitle: title,
+                notificationBody: body,
+                savedAt: now
+            )
+            saveMonthlySummary(record)
+        }
 
         schedule(
             id: "krono-monthly-summary",
-            title: "Krono \(monthName) Summary",
-            body: "Completed \(completedCount) \(completedLabel) this month. Still \(overdueCount) \(overdueLabel) pending.",
+            title: title,
+            body: body,
             date: summaryDate
         )
     }
     #endif
-    
-    private func schedule(id: String, title: String, body: String, date: Date) {
+
+    /// Returns the locally saved monthly summaries, newest month first.
+    func loadMonthlySummaries() -> [MonthlySummaryRecord] {
+        guard let data = UserDefaults.standard.data(forKey: monthlyArchiveKey),
+              let records = try? JSONDecoder().decode([MonthlySummaryRecord].self, from: data) else {
+            return []
+        }
+        return records.sorted { $0.monthStart > $1.monthStart }
+    }
+
+    /// Upserts a month's snapshot only when its displayed summary changes.
+    private func saveMonthlySummary(_ record: MonthlySummaryRecord) {
+        var records = loadMonthlySummaries()
+        if let index = records.firstIndex(where: { $0.monthKey == record.monthKey }) {
+            let old = records[index]
+            guard old.completedCount != record.completedCount ||
+                  old.pendingCount != record.pendingCount ||
+                  old.progressPercentage != record.progressPercentage ||
+                  old.notificationTitle != record.notificationTitle ||
+                  old.notificationBody != record.notificationBody else {
+                return
+            }
+            records[index] = record
+        } else {
+            records.append(record)
+        }
+
+        records.sort { $0.monthStart > $1.monthStart }
+        guard let data = try? JSONEncoder().encode(records) else { return }
+        UserDefaults.standard.set(data, forKey: monthlyArchiveKey)
+    }
+
+    private func schedule(id: String, title: String, body: String, date: Date) {    private func schedule(id: String, title: String, body: String, date: Date) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
