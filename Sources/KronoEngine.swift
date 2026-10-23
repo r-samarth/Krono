@@ -278,7 +278,8 @@ final class TaskStore: ObservableObject {
         var updated: TaskItem?
         withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
             tasks[idx].isCompleted.toggle()
-            tasks[idx].updatedAt = Date()
+            // Keep task versions monotonic even if this Mac's clock is slightly behind the iPhone's.
+            tasks[idx].updatedAt = max(Date(), tasks[idx].updatedAt.addingTimeInterval(0.01))
             updated = tasks[idx]
             sortTasks()
         }
