@@ -231,7 +231,7 @@ final class NotificationManager {
         UserDefaults.standard.set(data, forKey: monthlyArchiveKey)
     }
 
-    private func schedule(id: String, title: String, body: String, date: Date) {    private func schedule(id: String, title: String, body: String, date: Date) {
+    private func schedule(id: String, title: String, body: String, date: Date) {
         let content = UNMutableNotificationContent()
         content.title = title
         content.body = body
